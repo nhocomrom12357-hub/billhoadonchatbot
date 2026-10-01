@@ -1,5 +1,5 @@
 import streamlit as st
-st.image("IMG_5982.png", use_container_width=True)
+
 from fpdf import FPDF
 from io import BytesIO
 from datetime import datetime
