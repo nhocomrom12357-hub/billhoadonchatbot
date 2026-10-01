@@ -81,12 +81,14 @@ def create_pdf(customer_name, order_items, total_money, invoice_number):
 
     pdf = FPDF()
     pdf.add_page()
+    from pathlib import Path
 
-    # Tìm font Unicode
-    font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf",
-    ]
+font_path = Path(__file__).parent / "DejaVuSans.ttf"
+
+pdf.add_font("DejaVu", "", str(font_path))
+pdf.set_font("DejaVu", size=18)
+
+    
 
     font_path = None
 
