@@ -1,2 +1,2 @@
 streamlit
-fbdf2
+fpdf2==2.7.8
