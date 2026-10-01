@@ -1,4 +1,5 @@
 import streamlit as st
+st.image("IMG_5982.png", use_container_width=True)
 from fpdf import FPDF
 from io import BytesIO
 from datetime import datetime
@@ -134,11 +135,10 @@ def create_pdf(customer_name, order_items, total_money, invoice_number):
     # =====================================================
     # THÔNG TIN HÓA ĐƠN
     # =====================================================
-
-    pdf.set_font(
+pdf.set_font(
         normal_font,
         size=11
-    )
+        )
 
     pdf.cell(
         0,
@@ -299,150 +299,11 @@ st.write(
 )
 
 st.divider()
-
-
-# =========================================================
-# TÊN KHÁCH HÀNG
-# =========================================================
-
-customer_name = st.text_input(
-    "👤 Tên khách hàng",
-    placeholder="Ví dụ: Nguyễn Văn An"
-)
-
-
-# =========================================================
-# NHẬP CÁC MÓN
-# =========================================================
-
-st.subheader("🧋 Chọn món")
-
-order_items = []
-
-
-# Cho phép tối đa 5 món trong một hóa đơn
-for i in range(5):
-
-    st.markdown(f"### Món {i + 1}")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        drink = st.selectbox(
-            "Loại trà sữa",
-            ["-- Không chọn --"] + list(MENU.keys()),
-            key=f"drink_{i}"
-        )
-
-    with col2:
-
-        quantity = st.number_input(
-            "Số lượng",
-            min_value=1,
-            max_value=20,
-            value=1,
-            step=1,
-            key=f"quantity_{i}"
-        )
-
-    col3, col4 = st.columns(2)
-
-    with col3:
-
-        sugar = st.selectbox(
-            "🍬 Mức đường",
-            SUGAR_LEVELS,
-            key=f"sugar_{i}"
-        )
-
-    with col4:
-
-        ice = st.selectbox(
-            "🧊 Mức đá",
-            ICE_LEVELS,
-            key=f"ice_{i}"
-        )
-
-    toppings = st.multiselect(
-        "🍮 Topping",
-        list(TOPPINGS.keys()),
-        key=f"toppings_{i}"
-    )
-
-    st.divider()
-
-    # Nếu người dùng chọn món
-    if drink != "-- Không chọn --":
-
-        drink_price = MENU[drink]
-
-        topping_price = sum(
-            TOPPINGS[topping]
-            for topping in toppings
-        )
-
-        price_per_item = drink_price + topping_price
-
-        subtotal = price_per_item * quantity
-
-        order_items.append({
-            "drink": drink,
-            "quantity": quantity,
-            "price": price_per_item,
-            "drink_price": drink_price,
-            "toppings": toppings,
-            "topping_price": topping_price,
-            "sugar": sugar,
-            "ice": ice,
-            "subtotal": subtotal
-        })
-
-
-# =========================================================
-# TÍNH TỔNG TIỀN
-# =========================================================
-
-total_money = sum(
-    item["subtotal"]
-    for item in order_items
-)
-
-
-# =========================================================
-# NÚT THANH TOÁN
-# =========================================================
-
-if st.button(
-    "💳 THANH TOÁN & XUẤT HÓA ĐƠN",
-    use_container_width=True
-):
-
-    # Kiểm tra tên khách
-    if not customer_name.strip():
-
-        st.error(
-            "⚠️ Vui lòng nhập tên khách hàng."
-        )
-
-    # Kiểm tra có món hay chưa
-    elif len(order_items) == 0:
-
-        st.error(
-            "⚠️ Vui lòng chọn ít nhất một món."
-        )
-
-    else:
-
-        invoice_number = create_invoice_number()
-
-        # =================================================
-        # HIỂN THỊ KẾT QUẢ
-        # =================================================
+# =================================================
 
         st.success(
             "✅ Thanh toán thành công!"
-        )
+            )
 
         st.divider()
 
@@ -497,62 +358,4 @@ if st.button(
             else:
 
                 st.write(
-                    "**Topping:** Không"
-                )
-
-            st.write(
-                f"**Đường:** {item['sugar']}"
-            )
-
-            st.write(
-                f"**Đá:** {item['ice']}"
-            )
-
-            st.write(
-                f"**Thành tiền:** "
-                f"**{format_money(item['subtotal'])}**"
-            )
-
-            st.divider()
-
-        # =================================================
-        # TỔNG TIỀN
-        # =================================================
-
-        st.subheader(
-            f"💰 TỔNG THANH TOÁN: {format_money(total_money)}"
-        )
-
-        # =================================================
-        # TẠO FILE PDF
-        # =================================================
-
-        pdf_file = create_pdf(
-            customer_name,
-            order_items,
-            total_money,
-            invoice_number
-        )
-
-        # =================================================
-        # NÚT TẢI HÓA ĐƠN
-        # =================================================
-
-        safe_customer_name = re.sub(
-            r"[^a-zA-Z0-9_]+",
-            "_",
-            customer_name
-        )
-
-        file_name = (
-            f"HoaDon_{invoice_number}_"
-            f"{safe_customer_name}.pdf"
-        )
-
-        st.download_button(
-            label="📥 TẢI HÓA ĐƠN PDF",
-            data=pdf_file,
-            file_name=file_name,
-            mime="application/pdf",
-            use_container_width=True
-        )
+                    "**Topping:** Không")
