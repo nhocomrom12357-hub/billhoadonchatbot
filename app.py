@@ -81,19 +81,7 @@ def create_pdf(customer_name, order_items, total_money, invoice_number):
 
     pdf = FPDF()
     pdf.add_page()
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-
-    pdf.add_font("DejaVu", "", font_path)
-    pdf.set_font("DejaVu", size=18)
-
     
-
-    font_path = None
-
-    for path in font_paths:
-        if os.path.exists(path):
-            font_path = path
-            break
 
     # Nếu tìm thấy font Unicode
     if font_path:
