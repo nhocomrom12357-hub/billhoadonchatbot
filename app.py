@@ -5,496 +5,833 @@ from io import BytesIO
 from datetime import datetime
 import os
 import re
- 
- 
+import requests
+
+
 # =========================================================
 # CẤU HÌNH TRANG
 # =========================================================
- 
+
 st.set_page_config(
-   page_title="Tính Bill Trà Sữa",
-   page_icon="🧋",
-   layout="centered"
+    page_title="Tính Bill Trà Sữa",
+    page_icon="🧋",
+    layout="centered"
 )
- 
- 
+
+
 # =========================================================
 # DỮ LIỆU MENU
 # =========================================================
- 
+
 MENU = {
-   "Trà sữa truyền thống": 30000,
-   "Trà sữa matcha": 35000,
-   "Trà sữa socola": 35000,
-   "Trà sữa khoai môn": 35000,
-   "Trà sữa dâu": 35000,
-   "Trà sữa bạc hà": 35000,
-   "Trà đào": 30000,
-   "Trà vải": 30000,
-   "Trà chanh": 25000,
+    "Trà sữa truyền thống": 30000,
+    "Trà sữa matcha": 35000,
+    "Trà sữa socola": 35000,
+    "Trà sữa khoai môn": 35000,
+    "Trà sữa dâu": 35000,
+    "Trà sữa bạc hà": 35000,
+    "Trà đào": 30000,
+    "Trà vải": 30000,
+    "Trà chanh": 25000,
 }
- 
+
 TOPPINGS = {
-   "Trân châu đen": 5000,
-   "Trân châu trắng": 5000,
-   "Thạch trái cây": 5000,
-   "Pudding trứng": 7000,
-   "Thạch phô mai": 7000,
-   "Kem cheese": 10000,
+    "Trân châu đen": 5000,
+    "Trân châu trắng": 5000,
+    "Thạch trái cây": 5000,
+    "Pudding trứng": 7000,
+    "Thạch phô mai": 7000,
+    "Kem cheese": 10000,
 }
- 
- 
+
+
 SUGAR_LEVELS = [
-   "100%",
-   "70%",
-   "0%"
+    "100%",
+    "70%",
+    "0%"
 ]
- 
+
 ICE_LEVELS = [
-   "100%",
-   "70%",
-   "0%"
+    "100%",
+    "70%",
+    "0%"
 ]
- 
- 
+
+
 # =========================================================
 # HÀM ĐỊNH DẠNG TIỀN
 # =========================================================
- 
+
 def format_money(number):
-   return f"{number:,.0f} VNĐ"
- 
- 
+    return f"{number:,.0f} VNĐ"
+
+
 # =========================================================
 # HÀM TẠO SỐ HÓA ĐƠN
 # =========================================================
- 
+
 def create_invoice_number():
-   return datetime.now().strftime("HD%Y%m%d%H%M%S")
- 
- 
+    return datetime.now().strftime("HD%Y%m%d%H%M%S")
+
+
 # =========================================================
 # HÀM TẠO FILE PDF
 # =========================================================
- 
+
 def create_pdf(customer_name, order_items, total_money, invoice_number):
- 
-   pdf = FPDF()
-   pdf.add_page()
- 
-   # Tìm font Unicode
-   font_paths = [
-       "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-       "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf",
-   ]
- 
-   font_path = None
- 
-   for path in font_paths:
-       if os.path.exists(path):
-           font_path = path
-           break
- 
-   # Nếu tìm thấy font Unicode
-   if font_path:
-       pdf.add_font(
-           "DejaVu",
-           "",
-           font_path
-       )
-       pdf.add_font(
-           "DejaVu",
-           "B",
-           font_path
-       )
- 
-       normal_font = "DejaVu"
-       bold_font = "DejaVu"
-   else:
-       normal_font = "Helvetica"
-       bold_font = "Helvetica"
- 
-   # =====================================================
-   # TIÊU ĐỀ
-   # =====================================================
- 
-   pdf.set_font(
-       bold_font,
-       size=18
-   )
- 
-   pdf.cell(
-       0,
-       10,
-       "HOA DON QUAN TRA SUA",
-       align="C"
-   )
- 
-   pdf.ln(12)
- 
-   # =====================================================
-   # THÔNG TIN HÓA ĐƠN
-   # =====================================================
- 
-   pdf.set_font(
-       normal_font,
-       size=11
-       )
- 
-   pdf.cell(
-       0,
-       7,
-       f"So hoa don: {invoice_number}"
-   )
- 
-   pdf.ln(7)
- 
-   pdf.cell(
-       0,
-       7,
-       f"Khach hang: {customer_name}"
-   )
- 
-   pdf.ln(7)
- 
-   pdf.cell(
-       0,
-       7,
-       datetime.now().strftime(
-           "Thoi gian: %d/%m/%Y %H:%M"
-       )
-   )
- 
-   pdf.ln(10)
- 
-   # =====================================================
-   # DANH SÁCH MÓN
-   # =====================================================
- 
-   pdf.set_font(
-       bold_font,
-       size=11
-   )
- 
-   pdf.cell(60, 8, "Mon", border=1)
-   pdf.cell(15, 8, "SL", border=1, align="C")
-   pdf.cell(35, 8, "Don gia", border=1, align="C")
-   pdf.cell(70, 8, "Thanh tien", border=1, align="C")
- 
-   pdf.ln(8)
- 
-   pdf.set_font(
-       normal_font,
-       size=9
-   )
- 
-   for item in order_items:
- 
-       drink_name = item["drink"]
-       quantity = item["quantity"]
-       price = item["price"]
-       toppings = item["toppings"]
-       sugar = item["sugar"]
-       ice = item["ice"]
-       subtotal = item["subtotal"]
- 
-       pdf.cell(
-           60,
-           8,
-           drink_name,
-           border=1
-       )
- 
-       pdf.cell(
-           15,
-           8,
-           str(quantity),
-           border=1,
-           align="C"
-       )
- 
-       pdf.cell(
-           35,
-           8,
-           f"{price:,.0f}",
-           border=1,
-           align="C"
-       )
- 
-       pdf.cell(
-           70,
-           8,
-           f"{subtotal:,.0f}",
-           border=1,
-           align="C"
-       )
- 
-       pdf.ln(8)
- 
-       # Topping
-       if toppings:
-           topping_text = "Topping: " + ", ".join(toppings)
- 
-           pdf.multi_cell(
-               180,
-               6,
-               topping_text
-           )
- 
-       pdf.cell(
-           180,
-           6,
-           f"Duong: {sugar} | Da: {ice}"
-       )
- 
-       pdf.ln(7)
- 
-   # =====================================================
-   # TỔNG TIỀN
-   # =====================================================
- 
-   pdf.ln(5)
- 
-   pdf.set_font(
-       bold_font,
-       size=14
-   )
- 
-   pdf.cell(
-       0,
-       10,
-       f"TONG THANH TOAN: {total_money:,.0f} VNĐ",
-       align="R"
-   )
- 
-   pdf.ln(15)
- 
-   pdf.set_font(
-       normal_font,
-       size=10
-   )
- 
-   pdf.cell(
-       0,
-       7,
-       "Cam on quy khach! Hen gap lai.",
-       align="C"
-   )
- 
-   # Xuất PDF ra bộ nhớ
-   pdf_bytes = bytes(pdf.output())
- 
-   return pdf_bytes
- 
- 
+
+    pdf = FPDF()
+    pdf.add_page()
+
+    # Tìm font Unicode
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf",
+    ]
+
+    font_path = None
+
+    for path in font_paths:
+        if os.path.exists(path):
+            font_path = path
+            break
+
+    # Nếu tìm thấy font Unicode
+    if font_path:
+
+        pdf.add_font(
+            "DejaVu",
+            "",
+            font_path
+        )
+
+        pdf.add_font(
+            "DejaVu",
+            "B",
+            font_path
+        )
+
+        normal_font = "DejaVu"
+        bold_font = "DejaVu"
+
+    else:
+
+        normal_font = "Helvetica"
+        bold_font = "Helvetica"
+
+
+    # =====================================================
+    # TIÊU ĐỀ
+    # =====================================================
+
+    pdf.set_font(
+        bold_font,
+        size=18
+    )
+
+    pdf.cell(
+        0,
+        10,
+        "HOA DON QUAN TRA SUA",
+        align="C"
+    )
+
+    pdf.ln(12)
+
+
+    # =====================================================
+    # THÔNG TIN HÓA ĐƠN
+    # =====================================================
+
+    pdf.set_font(
+        normal_font,
+        size=11
+    )
+
+    pdf.cell(
+        0,
+        7,
+        f"So hoa don: {invoice_number}"
+    )
+
+    pdf.ln(7)
+
+    pdf.cell(
+        0,
+        7,
+        f"Khach hang: {customer_name}"
+    )
+
+    pdf.ln(7)
+
+    pdf.cell(
+        0,
+        7,
+        datetime.now().strftime(
+            "Thoi gian: %d/%m/%Y %H:%M"
+        )
+    )
+
+    pdf.ln(10)
+
+
+    # =====================================================
+    # DANH SÁCH MÓN
+    # =====================================================
+
+    pdf.set_font(
+        bold_font,
+        size=11
+    )
+
+    pdf.cell(60, 8, "Mon", border=1)
+    pdf.cell(15, 8, "SL", border=1, align="C")
+    pdf.cell(35, 8, "Don gia", border=1, align="C")
+    pdf.cell(70, 8, "Thanh tien", border=1, align="C")
+
+    pdf.ln(8)
+
+    pdf.set_font(
+        normal_font,
+        size=9
+    )
+
+    for item in order_items:
+
+        drink_name = item["drink"]
+        quantity = item["quantity"]
+        price = item["price"]
+        toppings = item["toppings"]
+        sugar = item["sugar"]
+        ice = item["ice"]
+        subtotal = item["subtotal"]
+
+        pdf.cell(
+            60,
+            8,
+            drink_name,
+            border=1
+        )
+
+        pdf.cell(
+            15,
+            8,
+            str(quantity),
+            border=1,
+            align="C"
+        )
+
+        pdf.cell(
+            35,
+            8,
+            f"{price:,.0f}",
+            border=1,
+            align="C"
+        )
+
+        pdf.cell(
+            70,
+            8,
+            f"{subtotal:,.0f}",
+            border=1,
+            align="C"
+        )
+
+        pdf.ln(8)
+
+        # Topping
+        if toppings:
+
+            topping_text = "Topping: " + ", ".join(toppings)
+
+            pdf.multi_cell(
+                180,
+                6,
+                topping_text
+            )
+
+        pdf.cell(
+            180,
+            6,
+            f"Duong: {sugar} | Da: {ice}"
+        )
+
+        pdf.ln(7)
+
+
+    # =====================================================
+    # TỔNG TIỀN
+    # =====================================================
+
+    pdf.ln(5)
+
+    pdf.set_font(
+        bold_font,
+        size=14
+    )
+
+    pdf.cell(
+        0,
+        10,
+        f"TONG THANH TOAN: {total_money:,.0f} VNĐ",
+        align="R"
+    )
+
+    pdf.ln(15)
+
+    pdf.set_font(
+        normal_font,
+        size=10
+    )
+
+    pdf.cell(
+        0,
+        7,
+        "Cam on quy khach! Hen gap lai.",
+        align="C"
+    )
+
+
+    # Xuất PDF ra bộ nhớ
+    pdf_bytes = bytes(pdf.output())
+
+    return pdf_bytes
+
+
+# =========================================================
+# CHATBOT AI
+# =========================================================
+
+def ask_chatbot(user_message, chat_history):
+
+    # Lấy API key từ Streamlit Secrets
+    api_key = st.secrets["OPENROUTER_API_KEY"]
+
+
+    # Tạo danh sách menu cho AI
+    menu_text = "\n".join(
+        f"- {name}: {format_money(price)}"
+        for name, price in MENU.items()
+    )
+
+
+    # Tạo danh sách topping cho AI
+    topping_text = "\n".join(
+        f"- {name}: {format_money(price)}"
+        for name, price in TOPPINGS.items()
+    )
+
+
+    # Nội dung hướng dẫn cho AI
+    system_prompt = f"""
+Bạn là trợ lý AI của Quán Trà Sữa.
+
+Bạn nói chuyện bằng tiếng Việt,
+thân thiện, ngắn gọn và dễ hiểu.
+
+========================
+MENU
+========================
+
+{menu_text}
+
+========================
+TOPPING
+========================
+
+{topping_text}
+
+========================
+MỨC ĐƯỜNG
+========================
+
+- 100%
+- 70%
+- 0%
+
+========================
+MỨC ĐÁ
+========================
+
+- 100%
+- 70%
+- 0%
+
+========================
+NHIỆM VỤ
+========================
+
+Bạn có thể:
+
+1. Tư vấn món cho khách.
+2. Trả lời giá món.
+3. Trả lời giá topping.
+4. Tư vấn mức đường.
+5. Tư vấn mức đá.
+6. Tính tiền đơn hàng khi khách hỏi.
+7. Hướng dẫn khách đặt món.
+8. Gợi ý các món dựa trên menu hiện có.
+
+QUY TẮC:
+
+- Không được tự bịa món.
+- Không được tự bịa giá.
+- Chỉ sử dụng menu và topping được cung cấp.
+- Trả lời ngắn gọn, dễ hiểu.
+- Luôn trả lời bằng tiếng Việt.
+- Nếu khách hỏi ngoài phạm vi quán trà sữa,
+  hãy nói rằng bạn là trợ lý của quán trà sữa.
+"""
+
+
+    # Tạo lịch sử hội thoại
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt
+        }
+    ]
+
+
+    # Chỉ gửi 10 tin nhắn gần nhất
+    for message in chat_history[-10:]:
+
+        messages.append({
+            "role": message["role"],
+            "content": message["content"]
+        })
+
+
+    # Thêm câu hỏi hiện tại
+    messages.append({
+        "role": "user",
+        "content": user_message
+    })
+
+
+    # Gửi request tới OpenRouter
+    response = requests.post(
+
+        "https://openrouter.ai/api/v1/chat/completions",
+
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        },
+
+        json={
+            "model": "google/gemma-4-26b-a4b-it:free",
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 500
+        },
+
+        timeout=60
+    )
+
+
+    # Kiểm tra lỗi API
+    if response.status_code != 200:
+
+        raise Exception(
+            f"OpenRouter lỗi {response.status_code}: "
+            f"{response.text}"
+        )
+
+
+    # Đọc dữ liệu trả về
+    data = response.json()
+
+
+    # Lấy câu trả lời của AI
+    return data["choices"][0]["message"]["content"]
+
+
 # =========================================================
 # GIAO DIỆN
 # =========================================================
- 
+
 st.title("🧋 QUÁN TRÀ SỮA")
- 
+
 st.subheader("🧾 TÍNH BILL HÓA ĐƠN")
- 
+
 st.write(
-   "Nhập thông tin khách hàng và các món khách đã gọi."
+    "Nhập thông tin khách hàng và các món khách đã gọi."
 )
- 
+
 st.divider()
- 
- 
+
+
 # =========================================================
 # TÊN KHÁCH HÀNG
 # =========================================================
+
 customer_name = st.text_input(
-   "👤 Tên khách hàng",
-   placeholder="Ví dụ: Nguyễn Văn An"
+    "👤 Tên khách hàng",
+    placeholder="Ví dụ: Nguyễn Văn An"
 )
- 
- 
+
+
 # =========================================================
 # NHẬP CÁC MÓN
 # =========================================================
- 
+
 st.subheader("🧋 Chọn món")
- 
+
 order_items = []
- 
- 
+
+
 # Cho phép tối đa 5 món trong một hóa đơn
 for i in range(5):
- 
-   st.markdown(f"### Món {i + 1}")
- 
-   col1, col2 = st.columns(2)
- 
-   with col1:
- 
-       drink = st.selectbox(
-           "Loại trà sữa",
-           ["-- Không chọn --"] + list(MENU.keys()),
-           key=f"drink_{i}"
-       )
- 
-   with col2:
- 
-       quantity = st.number_input(
-           "Số lượng",
-           min_value=1,
-           max_value=20,
-           value=1,
-           step=1,
-           key=f"quantity_{i}"
-       )
- 
-   col3, col4 = st.columns(2)
- 
-   with col3:
- 
-       sugar = st.selectbox(
-           "🍬 Mức đường",
-           SUGAR_LEVELS,
-           key=f"sugar_{i}"
-       )
- 
-   with col4:
- 
-       ice = st.selectbox(
-           "🧊 Mức đá",
-           ICE_LEVELS,
-           key=f"ice_{i}"
-       )
- 
-   toppings = st.multiselect(
-       "🍮 Topping",
-       list(TOPPINGS.keys()),
-       key=f"toppings_{i}"
-   )
- 
-   st.divider()
- 
-   # Nếu người dùng chọn món
-   if drink != "-- Không chọn --":
- 
-       drink_price = MENU[drink]
- 
-       topping_price = sum(
-           TOPPINGS[topping]
-           for topping in toppings
-       )
- 
-       price_per_item = drink_price + topping_price
- 
-       subtotal = price_per_item * quantity
- 
-       order_items.append({
-           "drink": drink,
-           "quantity": quantity,
-           "price": price_per_item,
-           "drink_price": drink_price,
-           "toppings": toppings,
-           "topping_price": topping_price,
-           "sugar": sugar,
-           "ice": ice,
-           "subtotal": subtotal
-       })
- 
- 
+
+    st.markdown(f"### Món {i + 1}")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        drink = st.selectbox(
+            "Loại trà sữa",
+            ["-- Không chọn --"] + list(MENU.keys()),
+            key=f"drink_{i}"
+        )
+
+    with col2:
+
+        quantity = st.number_input(
+            "Số lượng",
+            min_value=1,
+            max_value=20,
+            value=1,
+            step=1,
+            key=f"quantity_{i}"
+        )
+
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+
+        sugar = st.selectbox(
+            "🍬 Mức đường",
+            SUGAR_LEVELS,
+            key=f"sugar_{i}"
+        )
+
+    with col4:
+
+        ice = st.selectbox(
+            "🧊 Mức đá",
+            ICE_LEVELS,
+            key=f"ice_{i}"
+        )
+
+
+    toppings = st.multiselect(
+        "🍮 Topping",
+        list(TOPPINGS.keys()),
+        key=f"toppings_{i}"
+    )
+
+
+    st.divider()
+
+
+    # Nếu người dùng chọn món
+    if drink != "-- Không chọn --":
+
+        drink_price = MENU[drink]
+
+        topping_price = sum(
+            TOPPINGS[topping]
+            for topping in toppings
+        )
+
+        price_per_item = drink_price + topping_price
+
+        subtotal = price_per_item * quantity
+
+        order_items.append({
+
+            "drink": drink,
+
+            "quantity": quantity,
+
+            "price": price_per_item,
+
+            "drink_price": drink_price,
+
+            "toppings": toppings,
+
+            "topping_price": topping_price,
+
+            "sugar": sugar,
+
+            "ice": ice,
+
+            "subtotal": subtotal
+        })
+
+
 # =========================================================
 # TÍNH TỔNG TIỀN
 # =========================================================
- 
+
 total_money = sum(
-   item["subtotal"]
-   for item in order_items
+    item["subtotal"]
+    for item in order_items
 )
- 
- 
+
+
 # =========================================================
 # NÚT THANH TOÁN
 # =========================================================
- 
+
 if st.button(
-   "💳 THANH TOÁN & XUẤT HÓA ĐƠN",
-   use_container_width=True
+    "💳 THANH TOÁN & XUẤT HÓA ĐƠN",
+    use_container_width=True
 ):
- 
-   # Kiểm tra tên khách
-   if not customer_name.strip():
- 
-       st.error(
-           "⚠️ Vui lòng nhập tên khách hàng."
-       )
- 
-   # Kiểm tra có món hay chưa
-   elif len(order_items) == 0:
- 
-       st.error(
-           "⚠️ Vui lòng chọn ít nhất một món."
-       )
- 
-   else:
- 
-       invoice_number = create_invoice_number()
- 
-       # =================================================
-       # HIỂN THỊ KẾT QUẢ
-       # =================================================
- 
-       st.success(
-           "✅ Thanh toán thành công!"
-           )
- 
-       st.divider()
- 
-       st.subheader("🧾 THÔNG TIN HÓA ĐƠN")
- 
-       st.write(
-           f"**👤 Khách hàng:** {customer_name}"
-       )
- 
-       st.write(
-           f"**🔢 Số hóa đơn:** {invoice_number}"
-       )
- 
-       st.write(
-           datetime.now().strftime(
-               "**🕐 Thời gian:** %d/%m/%Y %H:%M:%S"
-           )
-       )
- 
-       st.divider()
- 
-       # =================================================
-       # HIỂN THỊ CÁC MÓN
-       # =================================================
- 
-       for index, item in enumerate(order_items):
- 
-           st.markdown(
-               f"### 🧋 {index + 1}. {item['drink']}"
-           )
- 
-           st.write(
-               f"**Số lượng:** {item['quantity']}"
-           )
- 
-           st.write(
-               f"**Giá trà:** {format_money(item['drink_price'])}"
-           )
- 
-           if item["toppings"]:
- 
-               st.write(
-                   "**Topping:** "
-                   + ", ".join(item["toppings"])
-               )
- 
-               st.write(
-                   f"**Tiền topping:** "
-                   f"{format_money(item['topping_price'])}"
-               )
- 
-           else:
- 
-               st.write(
-                   "**Topping:** Không")
+
+    # Kiểm tra tên khách
+    if not customer_name.strip():
+
+        st.error(
+            "⚠️ Vui lòng nhập tên khách hàng."
+        )
+
+
+    # Kiểm tra có món hay chưa
+    elif len(order_items) == 0:
+
+        st.error(
+            "⚠️ Vui lòng chọn ít nhất một món."
+        )
+
+
+    else:
+
+        invoice_number = create_invoice_number()
+
+
+        # =================================================
+        # HIỂN THỊ KẾT QUẢ
+        # =================================================
+
+        st.success(
+            "✅ Thanh toán thành công!"
+        )
+
+        st.divider()
+
+        st.subheader("🧾 THÔNG TIN HÓA ĐƠN")
+
+        st.write(
+            f"**👤 Khách hàng:** {customer_name}"
+        )
+
+        st.write(
+            f"**🔢 Số hóa đơn:** {invoice_number}"
+        )
+
+        st.write(
+            datetime.now().strftime(
+                "**🕐 Thời gian:** %d/%m/%Y %H:%M:%S"
+            )
+        )
+
+        st.divider()
+
+
+        # =================================================
+        # HIỂN THỊ CÁC MÓN
+        # =================================================
+
+        for index, item in enumerate(order_items):
+
+            st.markdown(
+                f"### 🧋 {index + 1}. {item['drink']}"
+            )
+
+            st.write(
+                f"**Số lượng:** {item['quantity']}"
+            )
+
+            st.write(
+                f"**Giá trà:** "
+                f"{format_money(item['drink_price'])}"
+            )
+
+
+            if item["toppings"]:
+
+                st.write(
+                    "**Topping:** "
+                    + ", ".join(item["toppings"])
+                )
+
+                st.write(
+                    f"**Tiền topping:** "
+                    f"{format_money(item['topping_price'])}"
+                )
+
+            else:
+
+                st.write(
+                    "**Topping:** Không"
+                )
+
+            st.write(
+                f"**Đường:** {item['sugar']}"
+            )
+
+            st.write(
+                f"**Đá:** {item['ice']}"
+            )
+
+            st.write(
+                f"**Thành tiền:** "
+                f"{format_money(item['subtotal'])}"
+            )
+
+            st.divider()
+
+
+        # =================================================
+        # TỔNG TIỀN
+        # =================================================
+
+        st.subheader(
+            f"💰 TỔNG THANH TOÁN: "
+            f"{format_money(total_money)}"
+        )
+
+
+        # =================================================
+        # TẠO PDF
+        # =================================================
+
+        try:
+
+            pdf_data = create_pdf(
+                customer_name,
+                order_items,
+                total_money,
+                invoice_number
+            )
+
+            st.download_button(
+
+                label="📄 TẢI HÓA ĐƠN PDF",
+
+                data=pdf_data,
+
+                file_name=f"{invoice_number}.pdf",
+
+                mime="application/pdf",
+
+                use_container_width=True
+            )
+
+        except Exception as e:
+
+            st.error(
+                f"Không thể tạo PDF: {e}"
+            )
+
+
+# =========================================================
+# CHATBOX AI
+# =========================================================
+
+st.divider()
+
+st.subheader("🤖 TRỢ LÝ AI QUÁN TRÀ SỮA")
+
+st.write(
+    "Bạn có thể hỏi AI về menu, giá món, topping, "
+    "mức đường hoặc mức đá."
+)
+
+
+# Tạo bộ nhớ hội thoại
+if "messages" not in st.session_state:
+
+    st.session_state.messages = []
+
+
+# Hiển thị lịch sử chat
+for message in st.session_state.messages:
+
+    with st.chat_message(message["role"]):
+
+        st.markdown(
+            message["content"]
+        )
+
+
+# Ô nhập câu hỏi
+user_message = st.chat_input(
+    "Ví dụ: Trà sữa matcha bao nhiêu tiền?"
+)
+
+
+# Khi khách gửi câu hỏi
+if user_message:
+
+    # Lưu câu hỏi
+    st.session_state.messages.append({
+
+        "role": "user",
+
+        "content": user_message
+    })
+
+
+    # Hiển thị câu hỏi
+    with st.chat_message("user"):
+
+        st.markdown(
+            user_message
+        )
+
+
+    # Hiển thị câu trả lời
+    with st.chat_message("assistant"):
+
+        with st.spinner(
+            "🤖 AI đang suy nghĩ..."
+        ):
+
+            try:
+
+                answer = ask_chatbot(
+
+                    user_message,
+
+                    st.session_state.messages[:-1]
+                )
+
+
+                st.markdown(
+                    answer
+                )
+
+
+                # Lưu câu trả lời
+                st.session_state.messages.append({
+
+                    "role": "assistant",
+
+                    "content": answer
+                })
+
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Không thể kết nối với AI."
+                )
+
+                st.caption(
+                    f"Chi tiết lỗi: {e}"
+                )
