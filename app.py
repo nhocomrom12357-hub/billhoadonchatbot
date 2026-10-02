@@ -19,7 +19,7 @@ st.set_page_config(
    layout="centered"
 )
  
-st.image("IMG_5982.png", use_container_width=True)
+
  
  
 # =========================================================
